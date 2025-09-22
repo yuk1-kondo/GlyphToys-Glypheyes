@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="com.nothing.ketchum.permission.ENABLE"/>
+
+    <application
+        android:label="Glyph Eyes"
+        android:allowBackup="true"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+
+        <service android:name=".GlyphEyesService" android:exported="true">
+            <intent-filter>
+                <action android:name="com.nothing.glyph.TOY"/>
+            </intent-filter>
+            <meta-data android:name="com.nothing.glyph.toy.name" android:resource="@string/toy_name"/>
+            <meta-data android:name="com.nothing.glyph.toy.image" android:resource="@drawable/img_toy_preview"/>
+            <meta-data android:name="com.nothing.glyph.toy.summary" android:resource="@string/toy_summary"/>
+            <meta-data android:name="com.nothing.glyph.toy.longpress" android:value="1"/>
+            <meta-data android:name="com.nothing.glyph.toy.aod_support" android:value="1"/>
+        </service>
+
+        <activity android:name=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
+
