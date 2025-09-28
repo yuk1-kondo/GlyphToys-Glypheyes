@@ -4,6 +4,7 @@
 
     <application
         android:label="Glyph Eyes"
+        android:icon="@mipmap/ic_launcher"
         android:allowBackup="true"
         android:supportsRtl="true"
         android:theme="@style/Theme.AppCompat.Light.NoActionBar">
