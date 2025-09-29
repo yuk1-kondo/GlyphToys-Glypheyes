@@ -34,20 +34,24 @@ def main():
     parser.add_argument("--dst", type=str, default=str(DEFAULT_DST), help="Output JSON filepath")
     parser.add_argument("--easing", type=str, default="easeInOutSine", help="Easing name for frames")
     parser.add_argument("--loop", action="store_true", help="Enable loop flag in JSON (default: False unless specified)")
+    parser.add_argument("--repeat", type=int, default=1, help="Repeat each input frame N times to slow down even if duration is ignored (default: 1)")
     args = parser.parse_args()
 
     frames = read_frames_from_csv(SRC)
     timeline = []
     t = 0
-    for idx, pixels in enumerate(frames):
-        timeline.append({
-            "index": idx,
-            "startMs": t,
-            "durationMs": args.duration,
-            "easing": args.easing,
-            "pixels": pixels,
-        })
-        t += args.duration
+    seq_index = 0
+    for _, pixels in enumerate(frames):
+        for _r in range(max(1, args.repeat)):
+            timeline.append({
+                "index": seq_index,
+                "startMs": t,
+                "durationMs": args.duration,
+                "easing": args.easing,
+                "pixels": pixels,
+            })
+            t += args.duration
+            seq_index += 1
 
     out = {
         "format": "GlyphEyesFramesV1",
