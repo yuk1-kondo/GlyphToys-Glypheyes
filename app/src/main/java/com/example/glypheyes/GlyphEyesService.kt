@@ -77,6 +77,12 @@ class GlyphEyesService : Service(), SensorEventListener {
     private var demoDurationMs: Long = 3000L
     private var demoSeed: Float = 0f
 
+    // AOD用の1分間隔ランダム目位置
+    private var aodLastChangeAt: Long = 0L
+    private val aodIntervalMs: Long = 60000L // 1分
+    private var aodOffsetX: Float = 0f
+    private var aodOffsetY: Float = 0f
+
     // Battery-driven sleepy bias (persistent, independent of transient animations)
     private var batterySleepBias: Float = 0f // 0..1
     private var batteryMoodTier: Int = 0 // 0 normal, 1 <30%, 2 <15%, 3 charging
@@ -258,10 +264,17 @@ class GlyphEyesService : Service(), SensorEventListener {
     }
 
     private fun handleAodTick() {
-        // gentle sway
-        val time = SystemClock.uptimeMillis() / 1000f
-        filteredX = sin(time * 0.5f) * 0.3f
-        filteredY = cos(time * 0.5f) * 0.3f
+        val now = SystemClock.uptimeMillis()
+        
+        // 1分間隔でランダムな目位置に変更
+        if (now - aodLastChangeAt >= aodIntervalMs) {
+            aodLastChangeAt = now
+            generateRandomAodPosition()
+        }
+        
+        // AOD用の固定位置を適用
+        filteredX = aodOffsetX
+        filteredY = aodOffsetY
     }
 
     private fun registerBatteryReceiver() {
@@ -748,6 +761,48 @@ class GlyphEyesService : Service(), SensorEventListener {
             }
             DemoType.STOP -> {
                 Quad(0, 0, 0, 0)
+            }
+        }
+    }
+
+    // AOD用ランダム位置生成
+    private fun generateRandomAodPosition() {
+        // 通常のデモパターンと同じ種類をランダム選択
+        val patterns = listOf("LR", "UD", "CROSSEYE", "APART", "DRIFT", "STOP")
+        val pattern = patterns[(0 until patterns.size).random()]
+        
+        when (pattern) {
+            "LR" -> {
+                // 左右どちらかの端へ
+                val direction = if ((0..1).random() == 0) -1f else 1f
+                aodOffsetX = direction * 0.8f // やや控えめ
+                aodOffsetY = 0f
+            }
+            "UD" -> {
+                // 上下どちらかへ
+                val direction = if ((0..1).random() == 0) -1f else 1f
+                aodOffsetX = 0f
+                aodOffsetY = direction * 0.5f // 縦方向は控えめ
+            }
+            "CROSSEYE" -> {
+                // 寄り目（左右で逆方向）- ここでは右寄り設定
+                aodOffsetX = 0.6f
+                aodOffsetY = 0f
+            }
+            "APART" -> {
+                // 離れ目 - ここでは左寄り設定
+                aodOffsetX = -0.4f
+                aodOffsetY = 0f
+            }
+            "DRIFT" -> {
+                // ランダムな位置
+                aodOffsetX = ((-8..8).random() / 10f)
+                aodOffsetY = ((-4..4).random() / 10f)
+            }
+            "STOP" -> {
+                // 中央
+                aodOffsetX = 0f
+                aodOffsetY = 0f
             }
         }
     }
