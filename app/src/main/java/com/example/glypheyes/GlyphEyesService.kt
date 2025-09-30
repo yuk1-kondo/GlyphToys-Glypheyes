@@ -26,6 +26,10 @@ import com.nothing.ketchum.Glyph
 
 class GlyphEyesService : Service(), SensorEventListener {
 
+    // 動作モード（起動時はデモ → ロングプレスでセンサー追従）
+    private enum class EyeMode { DEMO, SENSOR }
+    private var eyeMode: EyeMode = EyeMode.DEMO
+
     private var gm: GlyphMatrixManager? = null
     private var frameBuilder: GlyphMatrixFrame.Builder? = null
 
@@ -62,6 +66,17 @@ class GlyphEyesService : Service(), SensorEventListener {
     private var squintProgress: Float = 0f // 0 normal, 1 squinting (laughing eyes)
     private var isSquinting: Boolean = false
 
+    // 長押し判定
+    private var lastActionDownAt: Long = 0L
+    private val longPressThresholdMs: Long = 700L
+
+    // デモ動作用
+    private enum class DemoType { LR, UD, CROSSEYE, APART, DRIFT, STOP }
+    private var demoType: DemoType = DemoType.LR
+    private var demoStartAt: Long = 0L
+    private var demoDurationMs: Long = 3000L
+    private var demoSeed: Float = 0f
+
     // Battery-driven sleepy bias (persistent, independent of transient animations)
     private var batterySleepBias: Float = 0f // 0..1
     private var batteryMoodTier: Int = 0 // 0 normal, 1 <30%, 2 <15%, 3 charging
@@ -79,8 +94,8 @@ class GlyphEyesService : Service(), SensorEventListener {
                     val event = bundle.getString(GlyphToy.MSG_GLYPH_TOY_DATA)
                     when (event) {
                         GlyphToy.EVENT_CHANGE -> triggerSurprise()
-                        GlyphToy.EVENT_ACTION_DOWN -> triggerBlink()
-                        GlyphToy.EVENT_ACTION_UP -> triggerSquint() // New: squinting eyes on release
+                        GlyphToy.EVENT_ACTION_DOWN -> handleButtonDown()
+                        GlyphToy.EVENT_ACTION_UP -> handleButtonUp()
                         GlyphToy.EVENT_AOD -> {
                             handleAodTick()
                             // Randomly trigger different emotions during AOD
@@ -132,6 +147,9 @@ class GlyphEyesService : Service(), SensorEventListener {
         }
 
         startFrameLoop()
+
+        // 起動直後はデモパターンから開始
+        scheduleNextDemoMotion()
     }
 
     private fun teardown() {
@@ -322,24 +340,20 @@ class GlyphEyesService : Service(), SensorEventListener {
         val eyeRX = (eyeRadiusX * finalScale).roundToInt().coerceAtLeast(1)
         val eyeRY = (eyeRadiusY * finalScale).roundToInt().coerceAtLeast(1)
 
-        // Pupils position（傾き追従）
-        val offsetX = (filteredX * pupilRange).roundToInt()
-        val offsetY = (filteredY * pupilRange).roundToInt()
-        
-        // Apply direction-specific limits based on eye shape
-        val limitedOffsetX = when {
-            offsetX > 0 -> minOf(offsetX, 4) // Right: limit to 4 pixels (increased)
-            offsetX < 0 -> maxOf(offsetX, -2) // Left: limit to 2 pixels
-            else -> offsetX
+        // 瞳オフセット（モード別）
+        val (lx, ly, rx, ry) = when (eyeMode) {
+            EyeMode.SENSOR -> {
+                val ox = (filteredX * pupilRange).roundToInt()
+                val oy = (filteredY * pupilRange).roundToInt()
+                val (lox, loy) = applyDirectionLimits(ox, oy)
+                val (rox, roy) = applyDirectionLimits(ox, oy)
+                Quad(lox, loy, rox, roy)
+            }
+            EyeMode.DEMO -> computeDemoOffsets()
         }
-        val limitedOffsetY = when {
-            offsetY > 0 -> minOf(offsetY, 2) // Down: limit to 2 pixels
-            offsetY < 0 -> maxOf(offsetY, -5) // Up: limit to 5 pixels (increased by 2)
-            else -> offsetY
-        }
-        
-        val leftPupilCenter = Pair(eyeCenterLeft.first + limitedOffsetX, eyeCenterLeft.second + limitedOffsetY)
-        val rightPupilCenter = Pair(eyeCenterRight.first + limitedOffsetX, eyeCenterRight.second + limitedOffsetY)
+
+        val leftPupilCenter = Pair(eyeCenterLeft.first + lx, eyeCenterLeft.second + ly)
+        val rightPupilCenter = Pair(eyeCenterRight.first + rx, eyeCenterRight.second + ry)
 
         // 目のリングと瞳を1枚のビットマップに描画
         val bm = drawEyesBitmap(
@@ -607,6 +621,114 @@ class GlyphEyesService : Service(), SensorEventListener {
             }
         }
         step()
+    }
+
+    // ====== 追加: ボタン/モード/デモ ======
+    private fun handleButtonDown() {
+        lastActionDownAt = SystemClock.uptimeMillis()
+    }
+
+    private fun handleButtonUp() {
+        val now = SystemClock.uptimeMillis()
+        val dur = now - lastActionDownAt
+        if (dur >= longPressThresholdMs) {
+            // 長押し: 2回まばたき → センサーモードへ
+            triggerDoubleBlinkThenSwitchToSensor()
+        } else {
+            // 短押し: 軽い表情
+            triggerSquint()
+        }
+    }
+
+    private fun triggerDoubleBlinkThenSwitchToSensor() {
+        // 一回目
+        triggerBlink()
+        // 少し待って二回目
+        mainHandler.postDelayed({ triggerBlink() }, 240L)
+        // さらに待ってモード切替
+        mainHandler.postDelayed({ eyeMode = EyeMode.SENSOR }, 520L)
+    }
+
+    // 方向ごとの上限を適用
+    private fun applyDirectionLimits(dx: Int, dy: Int): Pair<Int, Int> {
+        val limitedX = when {
+            dx > 0 -> minOf(dx, 4)
+            dx < 0 -> maxOf(dx, -2)
+            else -> dx
+        }
+        val limitedY = when {
+            dy > 0 -> minOf(dy, 2)
+            dy < 0 -> maxOf(dy, -5)
+            else -> dy
+        }
+        return Pair(limitedX, limitedY)
+    }
+
+    private data class Quad(val lx: Int, val ly: Int, val rx: Int, val ry: Int)
+
+    private fun scheduleNextDemoMotion() {
+        val now = SystemClock.uptimeMillis()
+        demoStartAt = now
+        // 1.5〜4.0秒のゆっくり区間
+        demoDurationMs = (1500L..4000L).random()
+        demoType = listOf(
+            DemoType.LR, DemoType.UD, DemoType.CROSSEYE, DemoType.APART, DemoType.DRIFT, DemoType.STOP
+        ).random()
+        demoSeed = (0..10000).random() / 1000f
+    }
+
+    private fun computeDemoOffsets(): Quad {
+        val now = SystemClock.uptimeMillis()
+        if (now - demoStartAt >= demoDurationMs) {
+            scheduleNextDemoMotion()
+        }
+        val t = (now - demoStartAt).toFloat() / demoDurationMs.toFloat()
+        val twoPi = (PI * 2).toFloat()
+        val s = sin(twoPi * t).toFloat()
+
+        val rangeX = 4 // 横の最大レンジ
+        val rangeY = 2 // 縦の最大レンジ
+
+        return when (demoType) {
+            DemoType.LR -> {
+                val x = (s * rangeX).roundToInt()
+                val (lx, ly) = applyDirectionLimits(x, 0)
+                val (rx, ry) = applyDirectionLimits(x, 0)
+                Quad(lx, ly, rx, ry)
+            }
+            DemoType.UD -> {
+                val y = (s * rangeY).roundToInt()
+                val (lx, ly) = applyDirectionLimits(0, y)
+                val (rx, ry) = applyDirectionLimits(0, y)
+                Quad(lx, ly, rx, ry)
+            }
+            DemoType.CROSSEYE -> {
+                val base = (abs(s) * rangeX).roundToInt()
+                val (lx, ly) = applyDirectionLimits(+base, 0)
+                val (rx, ry) = applyDirectionLimits(-base, 0)
+                Quad(lx, ly, rx, ry)
+            }
+            DemoType.APART -> {
+                val base = (abs(s) * rangeX).roundToInt()
+                val (lx, ly) = applyDirectionLimits(-base, 0)
+                val (rx, ry) = applyDirectionLimits(+base, 0)
+                Quad(lx, ly, rx, ry)
+            }
+            DemoType.DRIFT -> {
+                // 低速・低振幅の左右独立ドリフト
+                val phase = twoPi * t
+                val xL = (sin(phase * 0.6f + demoSeed) * 2f).roundToInt()
+                val yL = (cos(phase * 0.4f + demoSeed) * 1f).roundToInt()
+                val xR = (sin(phase * 0.6f + demoSeed + PI.toFloat()) * 2f).roundToInt()
+                val yR = (cos(phase * 0.4f + demoSeed + PI.toFloat()) * 1f).roundToInt()
+                val (lx, ly) = applyDirectionLimits(xL, yL)
+                val (rx, ry) = applyDirectionLimits(xR, yR)
+                Quad(lx, ly, rx, ry)
+            }
+            DemoType.STOP -> {
+                Quad(0, 0, 0, 0)
+            }
+        }
     }
 }
 
