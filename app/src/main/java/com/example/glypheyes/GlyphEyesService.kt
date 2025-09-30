@@ -530,7 +530,8 @@ class GlyphEyesService : Service(), SensorEventListener {
 
             val ry = if (dy < 0f) safeRadiusYUp.toFloat() else safeRadiusYDown.toFloat()
             val safeRadiusXRight = (eyeRadiusX - pupilRadius + 1).coerceAtLeast(1)
-            val safeRadiusXLeft = (eyeRadiusX - pupilRadius).coerceAtLeast(1)
+            // 左方向は黒縁に潜り込まないように1px手前で止める
+            val safeRadiusXLeft = (eyeRadiusX - pupilRadius - 1).coerceAtLeast(1)
             val rx = (if (dx > 0f) safeRadiusXRight else safeRadiusXLeft).toFloat()
 
             val ellipseDist = (dx * dx) / (rx * rx) + (dy * dy) / (ry * ry)
@@ -632,21 +633,28 @@ class GlyphEyesService : Service(), SensorEventListener {
         val now = SystemClock.uptimeMillis()
         val dur = now - lastActionDownAt
         if (dur >= longPressThresholdMs) {
-            // 長押し: 2回まばたき → センサーモードへ
-            triggerDoubleBlinkThenSwitchToSensor()
+            // 長押し: 2回まばたき → モードをトグル
+            val target = if (eyeMode == EyeMode.DEMO) EyeMode.SENSOR else EyeMode.DEMO
+            triggerDoubleBlinkThenSwitch(target)
         } else {
             // 短押し: 軽い表情
             triggerSquint()
         }
     }
 
-    private fun triggerDoubleBlinkThenSwitchToSensor() {
+    private fun triggerDoubleBlinkThenSwitch(target: EyeMode) {
         // 一回目
         triggerBlink()
         // 少し待って二回目
         mainHandler.postDelayed({ triggerBlink() }, 240L)
         // さらに待ってモード切替
-        mainHandler.postDelayed({ eyeMode = EyeMode.SENSOR }, 520L)
+        mainHandler.postDelayed({
+            eyeMode = target
+            if (target == EyeMode.DEMO) {
+                // デモに戻るときはパターンをリセット
+                scheduleNextDemoMotion()
+            }
+        }, 520L)
     }
 
     // 方向ごとの上限を適用
@@ -671,9 +679,22 @@ class GlyphEyesService : Service(), SensorEventListener {
         demoStartAt = now
         // 1.5〜4.0秒のゆっくり区間
         demoDurationMs = (1500L..4000L).random()
-        demoType = listOf(
-            DemoType.LR, DemoType.UD, DemoType.CROSSEYE, DemoType.APART, DemoType.DRIFT, DemoType.STOP
-        ).random()
+        // 重み付け:
+        //  - STOP: 約10%
+        //  - 残りは「同方向(Left-Right/Up-Down) : 左右バラバラ(Cross/Apart/Drift) ≈ 3 : 1」
+        val r = (0..99).random()
+        demoType = if (r < 10) {
+            DemoType.STOP
+        } else {
+            val r2 = (0..99).random()
+            if (r2 < 75) {
+                // 同方向（3/4）
+                if ((0..1).random() == 0) DemoType.LR else DemoType.UD
+            } else {
+                // 左右バラバラ（1/4）
+                listOf(DemoType.CROSSEYE, DemoType.APART, DemoType.DRIFT).random()
+            }
+        }
         demoSeed = (0..10000).random() / 1000f
     }
 
