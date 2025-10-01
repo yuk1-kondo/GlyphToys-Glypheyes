@@ -1,24 +1,46 @@
 ## Glypheyes
 
-Glypheyes は、Nothing Phone の Glyph ボタンで遊べる“目の表情”トイです。端末の傾きに連動して瞳が動き、タッチやロングプレスで表情が変化します。バッテリー残量が少なくなると「眠そうな」上まぶたが降りる演出も備えています。
+A playful "eye expressions" toy for the Nothing Phone's Glyph button. The pupil follows device tilt, and touch/long‑press changes expressions. When the battery is low, a sleepy upper eyelid gently descends.
+
+[Download APK (latest)](https://github.com/yuk1-kondo/GlyphToys-Glypheyes/releases/latest/download/Glypheyes.apk)
+
+### Features
+- Tilt‑driven pupil movement (accelerometer)
+  - Smoothly follows right/left/up/down and stays clamped inside the oval sclera
+- Touch interactions
+  - Touch down: Blink
+  - Touch up: Smiling eyes (slightly squinted)
+  - Long press: Surprise
+- Battery‑aware sleepiness
+  - Below 30%: upper eyelid drops slightly
+  - Below 15%: drops further (sleepier)
+  - While charging: sleepiness cleared
+
+### Controls
+- Glyph button short press: switch toys (system behavior)
+- Glyph button long press: Surprise
+- Touch down: Blink
+- Touch up: Smiling eyes
+
+---
+
+## Glypheyes（日本語）
+
+Nothing Phone の Glyph ボタンで遊べる“目の表情”トイです。端末の傾きに連動して瞳が動き、タッチやロングプレスで表情が変化します。バッテリー残量が少ないと、上まぶたがゆっくり降りて「眠そう」な表情になります。
+
+[APK をダウンロード（最新）](https://github.com/yuk1-kondo/GlyphToys-Glypheyes/releases/latest/download/Glypheyes.apk)
 
 ### 主な機能
 - 傾き連動の瞳移動（加速度センサー）
-  - 右/左/上/下に自然に追従。楕円の白目からはみ出さないようにクランプ
+  - 右/左/上/下へ滑らかに追従。白目の楕円からはみ出さないようにクランプ
 - タッチ操作
   - Touch-down: まばたき
   - Touch-up: 目が笑う（すこし細くなる）
   - Long press: 驚きの表情
 - バッテリー連動の眠気
-  - 30%未満で上まぶたが降りる（軽い眠気）
-  - 15%未満でより重く降りる（強い眠気）
-  - 充電中は眠気を解除
-
-### 実装のポイント（ざっくり）
-- 描画は 25×25 のビットマップ上に「白目（縦楕円＋中央連結）」「縁取り」「瞳＋ハイライト」「まぶたカバー」を積層
-- 瞳は傾きからオフセットを計算し、白目の楕円内にクランプ（上下は非対称、安全半径を調整）
-- 表情は時間変化（blink/surprise/squint）と状態バイアス（batterySleepBias）を合成
-- AOD トリガやタッチイベントは `GlyphToy` のイベントメッセージで受信
+  - 30%未満: 上まぶたが少し降りる
+  - 15%未満: さらに重く降りる
+  - 充電中: 眠気を解除
 
 ### 操作方法
 - Glyph ボタン短押し: トイ切り替え（システム側機能）
@@ -26,21 +48,6 @@ Glypheyes は、Nothing Phone の Glyph ボタンで遊べる“目の表情”�
 - 押下（タッチダウン）: まばたき
 - 離す（タッチアップ）: 目が笑う
 
-### バッテリー連動
-- 30%未満: 上まぶたがやや降りる（常時）
-- 15%未満: さらに重く降りる（常時）
-- 充電中/満充電: 眠気解除（通常状態）
+---
 
-### ビルドとインストール
-```
-./gradlew assembleDebug
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-```
-
-### 開発メモ
-- 主要ファイル: `app/src/main/java/com/example/glypheyes/GlyphEyesService.kt`
-- 傾きフィルタや可動域、クランプ半径はコード内の定数で微調整可能
-- デモ用フラグ（強制眠気）は既定で無効化済み
-
-### ライセンス / クレジット
-- 本リポジトリのコードは学習・検証目的で作成されたものです。
+Notes: Build/installation steps, development memos, and license notes have been intentionally omitted to keep this README focused on usage and features.
