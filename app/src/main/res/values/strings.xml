@@ -4,12 +4,38 @@
     <string name="toy_summary">Two eyes following you on the Glyph Matrix</string>
     <string name="hero_title">GLYPH EYES</string>
     <string name="hero_tagline">Motion engine for Nothing Phone</string>
+    <string name="cta_primary">Try it now</string>
+    <string name="cta_secondary">How to set up</string>
     <string name="panel_overview_title">System overview</string>
     <string name="panel_setup_title">Setup guide</string>
     <string name="setup_steps">1. Open Glyph settings from the button below
 2. Enable &quot;GlyphEyes&quot; in notification settings
 3. Enjoy the animation on the Glyph interface</string>
     <string name="button_open_glyph_settings">Open Glyph settings</string>
+    <string name="panel_get_started">Getting started</string>
+    <string name="panel_monitoring">Monitoring</string>
+    <string name="panel_customization">Customization</string>
+    <string name="step_pair_device">1. Pair GlyphEyes with your device</string>
+    <string name="step_set_permissions">2. Grant battery and sensor permissions</string>
+    <string name="step_pick_animation">3. Pick a profile and adjust speed</string>
+    <string name="monitor_eye_state">Eye state</string>
+    <string name="monitor_battery">Battery &amp; tilt</string>
+    <string name="monitor_demo_mode">Demo mode</string>
+    <string name="monitor_eye_state_desc">Track gaze direction and blinks in real time from sensor data.</string>
+    <string name="monitor_battery_desc">Automatically change glow patterns using battery level and tilt.</string>
+    <string name="monitor_demo_mode_desc">Preview the animation live and confirm behavior instantly.</string>
+    <string name="customize_palette">Glyph palette</string>
+    <string name="customize_sequences">Animations</string>
+    <string name="customize_advanced">Advanced controls</string>
+    <string name="customize_palette_desc">Toggle neon and monochrome presets that match the Nothing grid.</string>
+    <string name="customize_sequences_desc">Combine gaze, blink, and pulse motions into custom loops.</string>
+    <string name="customize_advanced_desc">Fine-tune brightness, delays, and sensor sensitivity.</string>
+    <string name="feature_tilt_sync">Tilt sync</string>
+    <string name="feature_live_preview">Live preview</string>
+    <string name="feature_profile_switch">Profile switcher</string>
+    <string name="feature_tilt_sync_desc">Use the tilt sensor to shift the glow naturally across the glyphs.</string>
+    <string name="feature_live_preview_desc">Tilt or place the phone to see the real-time animation response.</string>
+    <string name="feature_profile_switch_desc">Recall saved setups with a single tap for any scene or battery state.</string>
     <string name="feature_tilt_title">Tilt sensor</string>
     <string name="feature_tilt_desc">Maps device tilt directly to pupil movement</string>
     <string name="feature_battery_title">Battery aware</string>
@@ -23,5 +49,8 @@
     <string name="developer_name">YUK_KND</string>
     <string name="footer_email">yukilab.m@gmail.com</string>
     <string name="footer_build">Build %1$s</string>
+    <string name="footer_version">Version %1$s</string>
+    <string name="footer_device">Optimized for Nothing Phone (2)</string>
+    <string name="footer_support">Support: hello@glypheyes.dev</string>
 </resources>
 

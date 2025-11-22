@@ -3,6 +3,12 @@
     <string name="app_name">GlyphEyes</string>
     <string name="hero_title">グリフで目を覚ます</string>
     <string name="hero_tagline">Nothing Phone (2) のグリフパネルをフル活用して、視線とリズムを表現するカスタムアニメーションを走らせましょう。</string>
+    <string name="panel_overview_title">システム概要</string>
+    <string name="panel_setup_title">セットアップガイド</string>
+    <string name="setup_steps">1. 下のボタンから Glyph 設定を開く
+2. 通知設定で「GlyphEyes」を有効にする
+3. Glyph インターフェースでアニメーションを楽しむ</string>
+    <string name="button_open_glyph_settings">Glyph 設定を開く</string>
     <string name="cta_primary">今すぐ試す</string>
     <string name="cta_secondary">セットアップ方法</string>
     <string name="panel_get_started">はじめに</string>
@@ -29,7 +35,20 @@
     <string name="feature_tilt_sync_desc">傾きセンサーを利用して上下左右の光り方を自然に変化させます。</string>
     <string name="feature_live_preview_desc">端末を傾けたり置いたりして、リアルタイムの演出を確認できます。</string>
     <string name="feature_profile_switch_desc">バッテリー状況やシーンに合わせて、保存済みのセットアップをワンタップで呼び出し。</string>
+    <string name="feature_tilt_title">傾きセンサー</string>
+    <string name="feature_tilt_desc">端末の傾きをそのまま瞳の動きにマッピング。</string>
+    <string name="feature_battery_title">バッテリー連動</string>
+    <string name="feature_battery_desc">残量にあわせて眠そうな表情を追加。</string>
+    <string name="feature_expression_title">表情エンジン</string>
+    <string name="feature_expression_desc">まばたき・驚き・怒り・眠気をひとつのモーションに集約。</string>
+    <string name="feature_aod_title">AOD 対応</string>
+    <string name="feature_aod_desc">Always-On Display 中もさりげない動きを維持。</string>
     <string name="footer_version">バージョン %1$s</string>
     <string name="footer_device">Nothing Phone (2) 対応</string>
     <string name="footer_support">サポート: hello@glypheyes.dev</string>
+    <string name="footer_creator_label">クリエイター</string>
+    <string name="footer_contact_button">連絡する</string>
+    <string name="developer_name">YUK_KND</string>
+    <string name="footer_email">yukilab.m@gmail.com</string>
+    <string name="footer_build">ビルド %1$s</string>
 </resources>
