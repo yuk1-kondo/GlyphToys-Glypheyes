@@ -1,12 +1,51 @@
 package com.example.glypheyes
 
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
+import android.util.Log
 import kotlin.math.*
 
 /**
- * デモモードのパターン生成とAOD（Always On Display）処理を管理するクラス
+ * デモモードのパターン生成とAOD(Always On Display)処理を管理するクラス
  */
-class DemoManager(private val eyeState: EyeState) {
+class DemoManager(
+    private val eyeState: EyeState,
+    private val onError: ErrorCallback? = null
+) : ManagedComponent {
+    
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var isActive = false
+    
+    companion object {
+        private const val TAG = "DemoManager"
+    }
+    
+    override fun start(): InitResult {
+        return try {
+            scheduleNextDemoMotion()
+            isActive = true
+            Log.d(TAG, "Demo manager started successfully")
+            InitResult.Success
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting demo manager", e)
+            onError?.invoke(TAG, "Exception during start", e)
+            InitResult.Failure("Exception: ${e.message}", e)
+        }
+    }
+    
+    override fun stop() {
+        try {
+            mainHandler.removeCallbacksAndMessages(null)
+            isActive = false
+            Log.d(TAG, "Demo manager stopped successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping demo manager", e)
+            onError?.invoke(TAG, "Exception during stop", e)
+        }
+    }
+    
+    override fun isActive(): Boolean = isActive
     
     /**
      * 次のデモ動作をスケジュール

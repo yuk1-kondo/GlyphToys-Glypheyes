@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.util.Log
 import kotlin.math.*
 
 /**
@@ -11,6 +12,10 @@ import kotlin.math.*
  * Paint オブジェクトと Bitmap を再利用してメモリ効率を向上
  */
 class EyeRenderer {
+    
+    companion object {
+        private const val TAG = "EyeRenderer"
+    }
     
     // 再利用可能な Bitmap と Canvas
     private val reusableBitmap = Bitmap.createBitmap(

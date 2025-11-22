@@ -5,33 +5,77 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.util.Log
 
 /**
  * 加速度センサーを管理し、端末の傾きを検出するクラス
  */
 class TiltSensorManager(
     context: Context,
-    private val eyeState: EyeState
-) : SensorEventListener {
+    private val eyeState: EyeState,
+    private val onError: ErrorCallback? = null
+) : SensorEventListener, ManagedComponent {
     
     private val sensorManager: SensorManager? = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
     private val accelerometer: Sensor? = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+    private var isActive = false
+    
+    companion object {
+        private const val TAG = "TiltSensorManager"
+    }
     
     /**
      * センサーのリスニングを開始
      */
-    fun start() {
-        accelerometer?.let {
-            sensorManager?.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME)
+    override fun start(): InitResult {
+        return try {
+            if (sensorManager == null) {
+                val msg = "SensorManager is not available"
+                Log.e(TAG, msg)
+                onError?.invoke(TAG, msg, null)
+                return InitResult.Failure(msg)
+            }
+            
+            if (accelerometer == null) {
+                val msg = "Accelerometer sensor is not available"
+                Log.w(TAG, msg)
+                onError?.invoke(TAG, msg, null)
+                return InitResult.Failure(msg)
+            }
+            
+            val registered = sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_GAME)
+            if (registered) {
+                isActive = true
+                Log.d(TAG, "Sensor started successfully")
+                InitResult.Success
+            } else {
+                val msg = "Failed to register sensor listener"
+                Log.e(TAG, msg)
+                onError?.invoke(TAG, msg, null)
+                InitResult.Failure(msg)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting sensor", e)
+            onError?.invoke(TAG, "Exception during start", e)
+            InitResult.Failure("Exception: ${e.message}", e)
         }
     }
     
     /**
      * センサーのリスニングを停止
      */
-    fun stop() {
-        sensorManager?.unregisterListener(this)
+    override fun stop() {
+        try {
+            sensorManager?.unregisterListener(this)
+            isActive = false
+            Log.d(TAG, "Sensor stopped successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping sensor", e)
+            onError?.invoke(TAG, "Exception during stop", e)
+        }
     }
+    
+    override fun isActive(): Boolean = isActive
     
     override fun onSensorChanged(event: SensorEvent?) {
         if (event?.sensor?.type != Sensor.TYPE_ACCELEROMETER) return

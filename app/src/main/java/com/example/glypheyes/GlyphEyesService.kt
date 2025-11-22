@@ -3,6 +3,7 @@ package com.example.glypheyes
 import android.app.Service
 import android.content.Intent
 import android.os.*
+import android.util.Log
 import kotlin.math.roundToInt
 
 // Import from SDK (provided via AAR)
@@ -17,6 +18,10 @@ import com.nothing.ketchum.Glyph
  * 各コンポーネントを組み合わせて、目の表情を制御するコーディネーター
  */
 class GlyphEyesService : Service() {
+
+    companion object {
+        private const val TAG = "GlyphEyesService"
+    }
 
     // コンポーネント
     private lateinit var eyeState: EyeState
@@ -82,29 +87,45 @@ class GlyphEyesService : Service() {
     }
 
     private fun init() {
+        Log.d(TAG, "Initializing service...")
+        
+        // エラーハンドリング用のコールバック
+        val errorCallback: ErrorCallback = { component, error, exception ->
+            Log.e(TAG, "[$component] $error", exception)
+        }
+        
         // コンポーネントを初期化
         eyeState = EyeState()
         animationController = AnimationController(eyeState)
-        tiltSensorManager = TiltSensorManager(this, eyeState)
-        batteryMonitor = BatteryMonitor(this, eyeState, animationController)
-        demoManager = DemoManager(eyeState)
+        tiltSensorManager = TiltSensorManager(this, eyeState, errorCallback)
+        batteryMonitor = BatteryMonitor(this, eyeState, animationController, errorCallback)
+        demoManager = DemoManager(eyeState, errorCallback)
         eyeRenderer = EyeRenderer()
 
         // Glyph SDK 初期化
         gm = GlyphMatrixManager.getInstance(this)
         gm?.init(object : GlyphMatrixManager.Callback {
-            override fun onServiceConnected(name: android.content.ComponentName?) {}
-            override fun onServiceDisconnected(name: android.content.ComponentName?) {}
+            override fun onServiceConnected(name: android.content.ComponentName?) {
+                Log.d(TAG, "Glyph service connected")
+            }
+            override fun onServiceDisconnected(name: android.content.ComponentName?) {
+                Log.w(TAG, "Glyph service disconnected")
+            }
         })
         gm?.register(Glyph.DEVICE_23112)
 
         frameBuilder = GlyphMatrixFrame.Builder()
 
-        // センサー開始
-        tiltSensorManager.start()
+        // コンポーネントを開始
+        val sensorResult = tiltSensorManager.start()
+        if (sensorResult is InitResult.Failure) {
+            Log.w(TAG, "Sensor initialization failed: ${sensorResult.reason}")
+        }
 
-        // バッテリー監視開始
-        batteryMonitor.start()
+        val batteryResult = batteryMonitor.start()
+        if (batteryResult is InitResult.Failure) {
+            Log.w(TAG, "Battery monitor initialization failed: ${batteryResult.reason}")
+        }
 
         // デモ用の強制眠気モード（デバッグ用）
         if (demoForceSleepy) {
@@ -114,19 +135,27 @@ class GlyphEyesService : Service() {
         }
 
         // デモモーション開始
-        demoManager.scheduleNextDemoMotion()
+        val demoResult = demoManager.start()
+        if (demoResult is InitResult.Failure) {
+            Log.w(TAG, "Demo manager initialization failed: ${demoResult.reason}")
+        }
 
         // フレーム描画開始
         startFrameLoop()
+        
+        Log.i(TAG, "Service initialized successfully")
     }
 
     private fun teardown() {
+        Log.d(TAG, "Tearing down service...")
         tiltSensorManager.stop()
         batteryMonitor.stop()
+        demoManager.stop()
         mainHandler.removeCallbacksAndMessages(null)
         gm?.unInit()
         gm = null
         frameBuilder = null
+        Log.i(TAG, "Service teardown complete")
     }
 
     private fun startFrameLoop() {

@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
+import android.util.Log
 
 /**
  * バッテリー状態を監視し、眠気バイアスを管理するクラス
@@ -12,37 +13,57 @@ import android.os.BatteryManager
 class BatteryMonitor(
     private val context: Context,
     private val eyeState: EyeState,
-    private val animationController: AnimationController
-) {
+    private val animationController: AnimationController,
+    private val onError: ErrorCallback? = null
+) : ManagedComponent {
     
     private var batteryReceiver: BroadcastReceiver? = null
     private var wasBatteryLow: Boolean = false
+    private var isActive = false
+    
+    companion object {
+        private const val TAG = "BatteryMonitor"
+    }
     
     /**
      * バッテリー監視を開始
      */
-    fun start() {
-        registerBatteryReceiver()
-        
-        // 初回のバッテリー状態を取得
-        val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
-        val sticky = context.registerReceiver(null, filter)
-        sticky?.let { batteryReceiver?.onReceive(context, it) }
+    override fun start(): InitResult {
+        return try {
+            registerBatteryReceiver()
+            
+            // 初回のバッテリー状態を取得
+            val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+            val sticky = context.registerReceiver(null, filter)
+            sticky?.let { batteryReceiver?.onReceive(context, it) }
+            
+            isActive = true
+            Log.d(TAG, "Battery monitor started successfully")
+            InitResult.Success
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting battery monitor", e)
+            onError?.invoke(TAG, "Exception during start", e)
+            InitResult.Failure("Exception: ${e.message}", e)
+        }
     }
     
     /**
      * バッテリー監視を停止
      */
-    fun stop() {
+    override fun stop() {
         batteryReceiver?.let {
             try {
                 context.unregisterReceiver(it)
+                Log.d(TAG, "Battery monitor stopped successfully")
             } catch (e: Exception) {
-                // 既に解除済みの場合は無視
+                Log.w(TAG, "Receiver already unregistered", e)
             }
         }
         batteryReceiver = null
+        isActive = false
     }
+    
+    override fun isActive(): Boolean = isActive
     
     /**
      * バッテリー状態の変化を監視するレシーバーを登録

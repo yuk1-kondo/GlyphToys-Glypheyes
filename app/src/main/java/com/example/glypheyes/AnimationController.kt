@@ -3,6 +3,7 @@ package com.example.glypheyes
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.util.Log
 
 /**
  * 目の表情アニメーションを制御するクラス
@@ -12,6 +13,10 @@ class AnimationController(private val eyeState: EyeState) {
     
     private val mainHandler = Handler(Looper.getMainLooper())
     
+    companion object {
+        private const val TAG = "AnimationController"
+    }
+    
     /**
      * まばたきをトリガー
      */
@@ -19,6 +24,7 @@ class AnimationController(private val eyeState: EyeState) {
         if (eyeState.isBlinking) return
         eyeState.isBlinking = true
         eyeState.blinkProgress = 0f
+        Log.d(TAG, "Blink triggered")
         animate(
             EyeConstants.BLINK_DURATION_MS,
             onUpdate = { t ->
