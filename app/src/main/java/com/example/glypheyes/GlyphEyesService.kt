@@ -42,14 +42,12 @@ class GlyphEyesService : Service(), SensorEventListener {
     private var filteredX: Float = 0f
     private var filteredY: Float = 0f
 
-    private val alpha: Float = 0.15f // Low-pass filter coefficient
-
-    private val eyeCenterLeft = Pair(8, 12)
-    private val eyeCenterRight = Pair(17, 12)
-    private val eyeRadiusX = 4 // horizontal radius
-    private val eyeRadiusY = 6 // vertical radius (taller)
-    private val pupilRadius = 2 // smaller pupils
-    private val pupilRange = 4 // max offset from center (increased for more movement)
+    private val eyeCenterLeft = Pair(EyeConstants.EYE_CENTER_LEFT_X, EyeConstants.EYE_CENTER_LEFT_Y)
+    private val eyeCenterRight = Pair(EyeConstants.EYE_CENTER_RIGHT_X, EyeConstants.EYE_CENTER_RIGHT_Y)
+    private val eyeRadiusX = EyeConstants.EYE_RADIUS_X
+    private val eyeRadiusY = EyeConstants.EYE_RADIUS_Y
+    private val pupilRadius = EyeConstants.PUPIL_RADIUS
+    private val pupilRange = EyeConstants.PUPIL_RANGE
 
     private var blinkProgress: Float = 0f // 0 open, 1 closed
     private var isBlinking: Boolean = false
@@ -68,7 +66,6 @@ class GlyphEyesService : Service(), SensorEventListener {
 
     // 長押し判定
     private var lastActionDownAt: Long = 0L
-    private val longPressThresholdMs: Long = 700L
 
     // デモ動作用
     private enum class DemoType { LR, UD, CROSSEYE, APART, DRIFT, STOP }
@@ -79,7 +76,6 @@ class GlyphEyesService : Service(), SensorEventListener {
 
     // AOD用の1分間隔ランダム目位置
     private var aodLastChangeAt: Long = 0L
-    private val aodIntervalMs: Long = 60000L // 1分
     private var aodOffsetX: Float = 0f
     private var aodOffsetY: Float = 0f
 
@@ -188,7 +184,7 @@ class GlyphEyesService : Service(), SensorEventListener {
         isBlinking = true
         blinkProgress = 0f
         animate(
-            150L,
+            EyeConstants.BLINK_DURATION_MS,
             onUpdate = { t ->
                 blinkProgress = if (t < 0.5f) t * 2f else (1f - (t - 0.5f) * 2f)
             },
@@ -204,7 +200,7 @@ class GlyphEyesService : Service(), SensorEventListener {
         isSurprised = true
         surpriseProgress = 0f
         animate(
-            300L,
+            EyeConstants.SURPRISE_DURATION_MS,
             onUpdate = { t ->
                 surpriseProgress = if (t < 0.5f) t * 2f else (1f - (t - 0.5f) * 2f)
             },
@@ -220,7 +216,7 @@ class GlyphEyesService : Service(), SensorEventListener {
         isSleepy = true
         sleepProgress = 0f
         animate(
-            2000L, // longer duration for sleepy state
+            EyeConstants.SLEEPY_DURATION_MS,
             onUpdate = { t ->
                 sleepProgress = if (t < 0.3f) t / 0.3f else 1f
             },
@@ -236,7 +232,7 @@ class GlyphEyesService : Service(), SensorEventListener {
         isAngry = true
         angryProgress = 0f
         animate(
-            800L,
+            EyeConstants.ANGRY_DURATION_MS,
             onUpdate = { t ->
                 angryProgress = if (t < 0.5f) t * 2f else (1f - (t - 0.5f) * 2f)
             },
@@ -252,7 +248,7 @@ class GlyphEyesService : Service(), SensorEventListener {
         isSquinting = true
         squintProgress = 0f
         animate(
-            800L,
+            EyeConstants.SQUINT_DURATION_MS,
             onUpdate = { t ->
                 squintProgress = if (t < 0.5f) t * 2f else (1f - (t - 0.5f) * 2f)
             },
@@ -267,7 +263,7 @@ class GlyphEyesService : Service(), SensorEventListener {
         val now = SystemClock.uptimeMillis()
         
         // 1分間隔でランダムな目位置に変更
-        if (now - aodLastChangeAt >= aodIntervalMs) {
+        if (now - aodLastChangeAt >= EyeConstants.AOD_INTERVAL_MS) {
             aodLastChangeAt = now
             generateRandomAodPosition()
         }
@@ -292,8 +288,8 @@ class GlyphEyesService : Service(), SensorEventListener {
                 // Decide tier
                 val newTier = when {
                     isCharging -> 3
-                    percent < 15 -> 2
-                    percent < 30 -> 1
+                    percent < EyeConstants.BATTERY_CRITICAL_THRESHOLD -> 2
+                    percent < EyeConstants.BATTERY_LOW_THRESHOLD -> 1
                     else -> 0
                 }
                 if (newTier != batteryMoodTier) {
@@ -332,8 +328,8 @@ class GlyphEyesService : Service(), SensorEventListener {
         val nx = (ax / 3f).coerceIn(-1f, 1f) // increased sensitivity
         // Fix Y-axis: when device is tilted up (ay negative), pupils should go up (ny negative)
         val ny = (ay / 3f).coerceIn(-1f, 1f) // increased sensitivity
-        filteredX += alpha * (nx - filteredX)
-        filteredY += alpha * (ny - filteredY)
+        filteredX += EyeConstants.LOWPASS_ALPHA * (nx - filteredX)
+        filteredY += EyeConstants.LOWPASS_ALPHA * (ny - filteredY)
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
@@ -345,7 +341,6 @@ class GlyphEyesService : Service(), SensorEventListener {
         val scaleBoost = 1f + 0.3f * surpriseProgress
         val effectiveSleep = (sleepProgress + batterySleepBias).coerceIn(0f, 1f)
         // Sleep should only affect eyelids, not eyeball size
-        val sleepScale = 1f
         val angryScale = 1f + 0.2f * angryProgress // eyes get slightly bigger when angry
         val squintScale = 1f - 0.6f * squintProgress // eyes get much smaller when squinting
         
@@ -370,8 +365,8 @@ class GlyphEyesService : Service(), SensorEventListener {
 
         // 目のリングと瞳を1枚のビットマップに描画
         val bm = drawEyesBitmap(
-            width = 25,
-            height = 25,
+            width = EyeConstants.BITMAP_WIDTH,
+            height = EyeConstants.BITMAP_HEIGHT,
             leftEyeCenter = eyeCenterLeft,
             rightEyeCenter = eyeCenterRight,
             eyeRadiusX = eyeRX,
@@ -510,7 +505,7 @@ class GlyphEyesService : Service(), SensorEventListener {
         }
 
         // 瞳とハイライトを描画（瞳は左下寄り、ハイライトは細長い三日月形）
-        fun drawPupilAndHighlight(eyeCenterX: Int, eyeCenterY: Int, pupilCx: Int, pupilCy: Int) {
+        fun drawPupilAndHighlight(pupilCx: Int, pupilCy: Int) {
             // 瞳（左下寄りに配置）
             val pupilOffsetX = -pupilRadius / 2 // 左寄り
             val pupilOffsetY = pupilRadius / 2  // 下寄り
@@ -537,9 +532,8 @@ class GlyphEyesService : Service(), SensorEventListener {
             val dx = (target.first - center.first).toFloat()
             val dy = (target.second - center.second).toFloat()
             // 横は瞳半径ぶんだけ内側に。縦は上方向(+2px猶予)、下方向(-1px厳しめ)
-            val safeRadiusX = (eyeRadiusX - pupilRadius).coerceAtLeast(1)
-            val safeRadiusYUp = (eyeRadiusY - pupilRadius + 2).coerceAtLeast(1)    // 上に+2px伸ばす
-            val safeRadiusYDown = (eyeRadiusY - pupilRadius - 1).coerceAtLeast(1)   // 下はやや厳しめ
+            val safeRadiusYUp = (eyeRadiusX - pupilRadius + 2).coerceAtLeast(1)    // 上に+2px伸ばす
+            val safeRadiusYDown = (eyeRadiusX - pupilRadius - 1).coerceAtLeast(1)   // 下はやや厳しめ
 
             val ry = if (dy < 0f) safeRadiusYUp.toFloat() else safeRadiusYDown.toFloat()
             val safeRadiusXRight = (eyeRadiusX - pupilRadius + 1).coerceAtLeast(1)
@@ -564,8 +558,8 @@ class GlyphEyesService : Service(), SensorEventListener {
         // 描画順序
         drawConnectedEyes()
         drawOutline()
-        drawPupilAndHighlight(leftEyeCenter.first, leftEyeCenter.second, clL.first, clL.second)
-        drawPupilAndHighlight(rightEyeCenter.first, rightEyeCenter.second, clR.first, clR.second)
+        drawPupilAndHighlight(clL.first, clL.second)
+        drawPupilAndHighlight(clR.first, clR.second)
 
         // まばたき（上下から黒バー）
         if (blink > 0f) {
@@ -629,7 +623,7 @@ class GlyphEyesService : Service(), SensorEventListener {
             val t = ((SystemClock.uptimeMillis() - start).toFloat() / durationMs).coerceIn(0f, 1f)
             onUpdate(t)
             if (t < 1f) {
-                mainHandler.postDelayed({ step() }, 16L)
+                mainHandler.postDelayed({ step() }, EyeConstants.ANIMATION_FRAME_INTERVAL_MS)
             } else {
                 onEnd()
             }
@@ -645,7 +639,7 @@ class GlyphEyesService : Service(), SensorEventListener {
     private fun handleButtonUp() {
         val now = SystemClock.uptimeMillis()
         val dur = now - lastActionDownAt
-        if (dur >= longPressThresholdMs) {
+        if (dur >= EyeConstants.LONG_PRESS_THRESHOLD_MS) {
             // 長押し: 2回まばたき → モードをトグル
             val target = if (eyeMode == EyeMode.DEMO) EyeMode.SENSOR else EyeMode.DEMO
             triggerDoubleBlinkThenSwitch(target)
@@ -659,7 +653,7 @@ class GlyphEyesService : Service(), SensorEventListener {
         // 一回目
         triggerBlink()
         // 少し待って二回目
-        mainHandler.postDelayed({ triggerBlink() }, 240L)
+        mainHandler.postDelayed({ triggerBlink() }, EyeConstants.DOUBLE_BLINK_INTERVAL_MS)
         // さらに待ってモード切替
         mainHandler.postDelayed({
             eyeMode = target
@@ -667,19 +661,19 @@ class GlyphEyesService : Service(), SensorEventListener {
                 // デモに戻るときはパターンをリセット
                 scheduleNextDemoMotion()
             }
-        }, 520L)
+        }, EyeConstants.MODE_SWITCH_DELAY_MS)
     }
 
     // 方向ごとの上限を適用
     private fun applyDirectionLimits(dx: Int, dy: Int): Pair<Int, Int> {
         val limitedX = when {
-            dx > 0 -> minOf(dx, 4)
-            dx < 0 -> maxOf(dx, -2)
+            dx > 0 -> minOf(dx, EyeConstants.PUPIL_LIMIT_RIGHT)
+            dx < 0 -> maxOf(dx, EyeConstants.PUPIL_LIMIT_LEFT)
             else -> dx
         }
         val limitedY = when {
-            dy > 0 -> minOf(dy, 2)
-            dy < 0 -> maxOf(dy, -5)
+            dy > 0 -> minOf(dy, EyeConstants.PUPIL_LIMIT_DOWN)
+            dy < 0 -> maxOf(dy, EyeConstants.PUPIL_LIMIT_UP)
             else -> dy
         }
         return Pair(limitedX, limitedY)
@@ -691,12 +685,12 @@ class GlyphEyesService : Service(), SensorEventListener {
         val now = SystemClock.uptimeMillis()
         demoStartAt = now
         // 1.5〜4.0秒のゆっくり区間
-        demoDurationMs = (1500L..4000L).random()
+        demoDurationMs = (EyeConstants.DEMO_MIN_DURATION_MS..EyeConstants.DEMO_MAX_DURATION_MS).random()
         // 重み付け:
         //  - STOP: 約10%
         //  - 残りは「同方向(Left-Right/Up-Down) : 左右バラバラ(Cross/Apart/Drift) ≈ 3 : 1」
         val r = (0..99).random()
-        demoType = if (r < 10) {
+        demoType = if (r < EyeConstants.DEMO_STOP_PROBABILITY) {
             DemoType.STOP
         } else {
             val r2 = (0..99).random()
