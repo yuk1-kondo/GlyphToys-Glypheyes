@@ -2,5 +2,26 @@
     <string name="app_name">Glyph Eyes</string>
     <string name="toy_name">Glyph Eyes</string>
     <string name="toy_summary">Two eyes following you on the Glyph Matrix</string>
+    <string name="hero_title">GLYPH EYES</string>
+    <string name="hero_tagline">Motion engine for Nothing Phone</string>
+    <string name="panel_overview_title">System overview</string>
+    <string name="panel_setup_title">Setup guide</string>
+    <string name="setup_steps">1. Open Glyph settings from the button below
+2. Enable &quot;GlyphEyes&quot; in notification settings
+3. Enjoy the animation on the Glyph interface</string>
+    <string name="button_open_glyph_settings">Open Glyph settings</string>
+    <string name="feature_tilt_title">Tilt sensor</string>
+    <string name="feature_tilt_desc">Maps device tilt directly to pupil movement</string>
+    <string name="feature_battery_title">Battery aware</string>
+    <string name="feature_battery_desc">Adds sleepy expressions as the battery drains</string>
+    <string name="feature_expression_title">Expression engine</string>
+    <string name="feature_expression_desc">Blink · Surprise · Angry · Sleepy in one motion set</string>
+    <string name="feature_aod_title">AOD ready</string>
+    <string name="feature_aod_desc">Keeps subtle motion while Always-On Display is active</string>
+    <string name="footer_creator_label">Creator</string>
+    <string name="footer_contact_button">Contact</string>
+    <string name="developer_name">YUK_KND</string>
+    <string name="footer_email">yukilab.m@gmail.com</string>
+    <string name="footer_build">Build %1$s</string>
 </resources>
 
