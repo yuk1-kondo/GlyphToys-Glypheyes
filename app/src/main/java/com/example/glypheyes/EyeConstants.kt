@@ -21,6 +21,12 @@ object EyeConstants {
     
     /** 目を細める（笑顔）アニメーションの時間（ミリ秒） */
     const val SQUINT_DURATION_MS = 800L
+
+    /** ウインク（左目だけ閉じる）アニメーションの時間（ミリ秒） */
+    const val WINK_DURATION_MS = 900L
+
+    /** 充電開始時の「驚き」から「笑顔」への遷移待ち時間（ミリ秒） */
+    const val WAKEUP_SMILE_DELAY_MS = 400L
     
     /** 2回まばたきの間隔（ミリ秒） */
     const val DOUBLE_BLINK_INTERVAL_MS = 240L
@@ -41,51 +47,16 @@ object EyeConstants {
     
     /** AOD（Always On Display）での目の位置変更間隔（ミリ秒） */
     const val AOD_INTERVAL_MS = 60_000L // 1分
-    
-    // ===== 目の形状 =====
-    /** 左目の中心座標 X */
-    const val EYE_CENTER_LEFT_X = 8
-    
-    /** 左目の中心座標 Y */
-    const val EYE_CENTER_LEFT_Y = 12
-    
-    /** 右目の中心座標 X */
-    const val EYE_CENTER_RIGHT_X = 17
-    
-    /** 右目の中心座標 Y */
-    const val EYE_CENTER_RIGHT_Y = 12
-    
-    /** 目の横方向の半径（ピクセル） */
-    const val EYE_RADIUS_X = 4
-    
-    /** 目の縦方向の半径（ピクセル、縦長の楕円） */
-    const val EYE_RADIUS_Y = 6
-    
-    /** 瞳の半径（ピクセル） */
-    const val PUPIL_RADIUS = 2
-    
-    /** 瞳が中心から移動できる最大距離（ピクセル） */
-    const val PUPIL_RANGE = 4
-    
-    /** 目の輪郭線の太さ（ピクセル） */
-    const val EYE_OUTLINE_WIDTH = 1
-    
-    // ===== 瞳の移動制限 =====
-    /** 瞳の右方向への最大移動量 */
-    const val PUPIL_LIMIT_RIGHT = 4
-    
-    /** 瞳の左方向への最大移動量（負の値） */
-    const val PUPIL_LIMIT_LEFT = -2
-    
-    /** 瞳の下方向への最大移動量 */
-    const val PUPIL_LIMIT_DOWN = 2
-    
-    /** 瞳の上方向への最大移動量（負の値） */
-    const val PUPIL_LIMIT_UP = -5
-    
+
+    // ※ 目の形状・瞳の移動制限はデバイスのマトリクス長に依存するため
+    //    EyeLayout（EyeLayout.forMatrixLength）で管理する
+
     // ===== ボタン操作 =====
     /** 長押しと判定する閾値（ミリ秒） */
     const val LONG_PRESS_THRESHOLD_MS = 700L
+
+    /** ダブルプレス（2連続短押し）と判定する間隔（ミリ秒） */
+    const val DOUBLE_PRESS_WINDOW_MS = 300L
     
     // ===== バッテリー管理 =====
     /** バッテリー残量が少ないと判定する閾値（%） */
@@ -97,14 +68,7 @@ object EyeConstants {
     // ===== フレームレート =====
     /** アニメーションフレーム間隔（ミリ秒、約60fps） */
     const val ANIMATION_FRAME_INTERVAL_MS = 16L
-    
-    // ===== ビットマップサイズ =====
-    /** 目を描画するビットマップの幅（ピクセル） */
-    const val BITMAP_WIDTH = 25
-    
-    /** 目を描画するビットマップの高さ（ピクセル） */
-    const val BITMAP_HEIGHT = 25
-    
+
     // ===== デモパターンの確率 =====
     /** デモで停止する確率（%） */
     const val DEMO_STOP_PROBABILITY = 10

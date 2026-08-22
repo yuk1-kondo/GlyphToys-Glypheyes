@@ -6,31 +6,6 @@ package com.example.glypheyes
  */
 
 /**
- * センサー入力のコールバック
- * @param normalizedX X軸の正規化された値 (-1.0 ~ 1.0)
- * @param normalizedY Y軸の正規化された値 (-1.0 ~ 1.0)
- */
-typealias SensorInputCallback = (normalizedX: Float, normalizedY: Float) -> Unit
-
-/**
- * バッテリー状態変化のコールバック
- * @param tier バッテリーレベルのティア (0: 通常, 1: 低い, 2: 危機的, 3: 充電中)
- * @param sleepBias 眠気バイアス (0.0 ~ 1.0)
- */
-typealias BatteryStateCallback = (tier: Int, sleepBias: Float) -> Unit
-
-/**
- * アニメーション進行のコールバック
- * @param progress アニメーション進行度 (0.0 ~ 1.0)
- */
-typealias AnimationProgressCallback = (progress: Float) -> Unit
-
-/**
- * アニメーション完了のコールバック
- */
-typealias AnimationCompleteCallback = () -> Unit
-
-/**
  * エラーハンドリングのコールバック
  * @param component エラーが発生したコンポーネント名
  * @param error エラーの説明

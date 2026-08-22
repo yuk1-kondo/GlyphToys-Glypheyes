@@ -20,13 +20,15 @@ data class EyeState(
     var sleepProgress: Float = 0f,
     var angryProgress: Float = 0f,
     var squintProgress: Float = 0f,
-    
+    var winkProgress: Float = 0f,
+
     // アニメーション実行中フラグ
     var isBlinking: Boolean = false,
     var isSurprised: Boolean = false,
     var isSleepy: Boolean = false,
     var isAngry: Boolean = false,
     var isSquinting: Boolean = false,
+    var isWinking: Boolean = false,
     
     // バッテリー由来の眠気バイアス（持続的）
     var batterySleepBias: Float = 0f,
@@ -44,7 +46,8 @@ data class EyeState(
     var aodOffsetY: Float = 0f,
     
     // ボタン操作
-    var lastActionDownAt: Long = 0L
+    var lastActionDownAt: Long = 0L,
+    var lastShortPressUpAt: Long = 0L
 ) {
     /**
      * 動作モード

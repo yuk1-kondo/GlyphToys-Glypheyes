@@ -8,14 +8,19 @@ import kotlin.math.*
 
 /**
  * デモモードのパターン生成とAOD(Always On Display)処理を管理するクラス
+ * @param layout デバイスのマトリクス長に応じた目のジオメトリ
  */
 class DemoManager(
     private val eyeState: EyeState,
+    private val layout: EyeLayout,
     private val onError: ErrorCallback? = null
 ) : ManagedComponent {
-    
+
     private val mainHandler = Handler(Looper.getMainLooper())
     private var isActive = false
+
+    /** デモ振幅のスケール（25px基準のチューニング値をデバイス解像度へ合わせる） */
+    private val demoScale = layout.size / 25f
     
     companion object {
         private const val TAG = "DemoManager"
@@ -91,21 +96,21 @@ class DemoManager(
             EyeState.DemoType.LR -> {
                 // 左右同期で動く
                 val phase = twoPi * t
-                val x = (sin(phase * 0.5f + eyeState.demoSeed) * 3f).roundToInt()
+                val x = (sin(phase * 0.5f + eyeState.demoSeed) * 3f * demoScale).roundToInt()
                 val (lx, ly) = applyDirectionLimits(x, 0)
                 Quad(lx, ly, lx, ly)
             }
             EyeState.DemoType.UD -> {
                 // 上下同期で動く
                 val phase = twoPi * t
-                val y = (cos(phase * 0.5f + eyeState.demoSeed) * 2f).roundToInt()
+                val y = (cos(phase * 0.5f + eyeState.demoSeed) * 2f * demoScale).roundToInt()
                 val (lx, ly) = applyDirectionLimits(0, y)
                 Quad(lx, ly, lx, ly)
             }
             EyeState.DemoType.CROSSEYE -> {
                 // 寄り目（左右で逆方向）
                 val phase = twoPi * t
-                val baseX = (sin(phase * 0.6f + eyeState.demoSeed) * 3f).roundToInt()
+                val baseX = (sin(phase * 0.6f + eyeState.demoSeed) * 3f * demoScale).roundToInt()
                 val (lx, ly) = applyDirectionLimits(baseX, 0)
                 val (rx, ry) = applyDirectionLimits(-baseX, 0)
                 Quad(lx, ly, rx, ry)
@@ -113,17 +118,17 @@ class DemoManager(
             EyeState.DemoType.APART -> {
                 // 離れ目（左右で同方向だが大きめ）
                 val phase = twoPi * t
-                val baseX = (sin(phase * 0.4f + eyeState.demoSeed) * 4f).roundToInt()
+                val baseX = (sin(phase * 0.4f + eyeState.demoSeed) * 4f * demoScale).roundToInt()
                 val (lx, ly) = applyDirectionLimits(baseX, 0)
                 Quad(lx, ly, lx, ly)
             }
             EyeState.DemoType.DRIFT -> {
                 // 低速・低振幅の左右独立ドリフト
                 val phase = twoPi * t
-                val xL = (sin(phase * 0.6f + eyeState.demoSeed) * 2f).roundToInt()
-                val yL = (cos(phase * 0.4f + eyeState.demoSeed) * 1f).roundToInt()
-                val xR = (sin(phase * 0.6f + eyeState.demoSeed + PI.toFloat()) * 2f).roundToInt()
-                val yR = (cos(phase * 0.4f + eyeState.demoSeed + PI.toFloat()) * 1f).roundToInt()
+                val xL = (sin(phase * 0.6f + eyeState.demoSeed) * 2f * demoScale).roundToInt()
+                val yL = (cos(phase * 0.4f + eyeState.demoSeed) * 1f * demoScale).roundToInt()
+                val xR = (sin(phase * 0.6f + eyeState.demoSeed + PI.toFloat()) * 2f * demoScale).roundToInt()
+                val yR = (cos(phase * 0.4f + eyeState.demoSeed + PI.toFloat()) * 1f * demoScale).roundToInt()
                 val (lx, ly) = applyDirectionLimits(xL, yL)
                 val (rx, ry) = applyDirectionLimits(xR, yR)
                 Quad(lx, ly, rx, ry)
@@ -139,13 +144,13 @@ class DemoManager(
      */
     private fun applyDirectionLimits(dx: Int, dy: Int): Pair<Int, Int> {
         val limitedX = when {
-            dx > 0 -> minOf(dx, EyeConstants.PUPIL_LIMIT_RIGHT)
-            dx < 0 -> maxOf(dx, EyeConstants.PUPIL_LIMIT_LEFT)
+            dx > 0 -> minOf(dx, layout.limitRight)
+            dx < 0 -> maxOf(dx, layout.limitLeft)
             else -> dx
         }
         val limitedY = when {
-            dy > 0 -> minOf(dy, EyeConstants.PUPIL_LIMIT_DOWN)
-            dy < 0 -> maxOf(dy, EyeConstants.PUPIL_LIMIT_UP)
+            dy > 0 -> minOf(dy, layout.limitDown)
+            dy < 0 -> maxOf(dy, layout.limitUp)
             else -> dy
         }
         return Pair(limitedX, limitedY)

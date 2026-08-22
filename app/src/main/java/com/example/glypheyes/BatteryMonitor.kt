@@ -107,10 +107,10 @@ class BatteryMonitor(
                             animationController.triggerSleepy()
                             wasBatteryLow = true
                         }
-                        3 -> { // 充電中 → 眠気解除
+                        3 -> { // 充電中 → 眠気解除して笑顔
                             if (wasBatteryLow) {
                                 eyeState.batterySleepBias = 0f
-                                animationController.triggerSurprise() // 充電で目覚める
+                                animationController.triggerWakeupSmile() // 驚き→笑顔で目覚める
                                 wasBatteryLow = false
                             }
                         }

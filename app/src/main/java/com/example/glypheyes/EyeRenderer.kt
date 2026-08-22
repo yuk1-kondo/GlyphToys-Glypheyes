@@ -10,31 +10,32 @@ import kotlin.math.*
 /**
  * 目のビットマップを描画するクラス
  * Paint オブジェクトと Bitmap を再利用してメモリ効率を向上
+ * @param layout デバイスのマトリクス長に応じた目のジオメトリ
  */
-class EyeRenderer {
-    
+class EyeRenderer(private val layout: EyeLayout) {
+
     companion object {
         private const val TAG = "EyeRenderer"
     }
-    
+
     // 再利用可能な Bitmap と Canvas
     private val reusableBitmap = Bitmap.createBitmap(
-        EyeConstants.BITMAP_WIDTH, 
-        EyeConstants.BITMAP_HEIGHT, 
+        layout.size,
+        layout.size,
         Bitmap.Config.ARGB_8888
     )
     private val canvas = Canvas(reusableBitmap)
-    
+
     // 再利用可能な Paint オブジェクト
     private val whitePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.WHITE
         style = Paint.Style.FILL
     }
-    
+
     private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.BLACK
         style = Paint.Style.STROKE
-        strokeWidth = EyeConstants.EYE_OUTLINE_WIDTH.toFloat()
+        strokeWidth = layout.outlineWidth.toFloat()
     }
     
     private val blackFill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -48,9 +49,10 @@ class EyeRenderer {
     }
     
     private val angryPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.BLACK
+        // 白い lit 線として描く(黒のままでは背景と同化して見えない)
+        color = Color.WHITE
         style = Paint.Style.STROKE
-        strokeWidth = 2f
+        strokeWidth = (layout.size / 12f).roundToInt().toFloat()  // 25→2px, 13→1px
     }
     
     /**
@@ -67,7 +69,8 @@ class EyeRenderer {
         blink: Float,
         sleep: Float = 0f,
         angry: Float = 0f,
-        squint: Float = 0f
+        squint: Float = 0f,
+        wink: Float = 0f
     ): Bitmap {
         // 背景をクリア（黒 = 消灯）
         canvas.drawColor(Color.BLACK)
@@ -86,32 +89,33 @@ class EyeRenderer {
         if (blink > 0f) {
             val cover = (eyeRadiusY * blink).roundToInt().coerceAtLeast(1)
             val topY = max(0, leftEyeCenter.second - eyeRadiusY)
-            val botY = min(EyeConstants.BITMAP_HEIGHT, leftEyeCenter.second + eyeRadiusY)
-            canvas.drawRect(0f, topY.toFloat(), EyeConstants.BITMAP_WIDTH.toFloat(), (topY + cover).toFloat(), blackFill)
-            canvas.drawRect(0f, (botY - cover).toFloat(), EyeConstants.BITMAP_WIDTH.toFloat(), botY.toFloat(), blackFill)
+            val botY = min(layout.size, leftEyeCenter.second + eyeRadiusY)
+            canvas.drawRect(0f, topY.toFloat(), layout.size.toFloat(), (topY + cover).toFloat(), blackFill)
+            canvas.drawRect(0f, (botY - cover).toFloat(), layout.size.toFloat(), botY.toFloat(), blackFill)
         }
         
         // 眠気（上まぶただけが降りる）
         if (sleep > 0f) {
             val sleepCover = (eyeRadiusY * sleep * 0.7f).roundToInt().coerceAtLeast(1)
             val topY = max(0, leftEyeCenter.second - eyeRadiusY)
-            canvas.drawRect(0f, topY.toFloat(), EyeConstants.BITMAP_WIDTH.toFloat(), (topY + sleepCover).toFloat(), blackFill)
+            canvas.drawRect(0f, topY.toFloat(), layout.size.toFloat(), (topY + sleepCover).toFloat(), blackFill)
         }
         
-        // 怒り（眉毛）
+        // 怒り（眉毛・白い斜線を目の上に）
         if (angry > 0f) {
-            val leftEyebrowY = leftEyeCenter.second - eyeRadiusY - 2
+            val browOffset = (layout.size / 12f).roundToInt()  // 25→2, 13→1
+            val leftEyebrowY = leftEyeCenter.second - eyeRadiusY - browOffset
             canvas.drawLine(
                 (leftEyeCenter.first - eyeRadiusX + 1).toFloat(),
                 leftEyebrowY.toFloat(),
                 (leftEyeCenter.first + eyeRadiusX - 1).toFloat(),
-                (leftEyebrowY - 2 * angry).toFloat(),
+                (leftEyebrowY - browOffset * angry).toFloat(),
                 angryPaint
             )
-            val rightEyebrowY = rightEyeCenter.second - eyeRadiusY - 2
+            val rightEyebrowY = rightEyeCenter.second - eyeRadiusY - browOffset
             canvas.drawLine(
                 (rightEyeCenter.first - eyeRadiusX + 1).toFloat(),
-                (rightEyebrowY - 2 * angry).toFloat(),
+                (rightEyebrowY - browOffset * angry).toFloat(),
                 (rightEyeCenter.first + eyeRadiusX - 1).toFloat(),
                 rightEyebrowY.toFloat(),
                 angryPaint
@@ -122,11 +126,34 @@ class EyeRenderer {
         if (squint > 0f) {
             val squintCover = (eyeRadiusY * squint * 0.8f).roundToInt().coerceAtLeast(1)
             val topY = max(0, leftEyeCenter.second - eyeRadiusY)
-            val botY = min(EyeConstants.BITMAP_HEIGHT, leftEyeCenter.second + eyeRadiusY)
-            canvas.drawRect(0f, topY.toFloat(), EyeConstants.BITMAP_WIDTH.toFloat(), (topY + squintCover).toFloat(), blackFill)
-            canvas.drawRect(0f, (botY - squintCover).toFloat(), EyeConstants.BITMAP_WIDTH.toFloat(), botY.toFloat(), blackFill)
+            val botY = min(layout.size, leftEyeCenter.second + eyeRadiusY)
+            canvas.drawRect(0f, topY.toFloat(), layout.size.toFloat(), (topY + squintCover).toFloat(), blackFill)
+            canvas.drawRect(0f, (botY - squintCover).toFloat(), layout.size.toFloat(), botY.toFloat(), blackFill)
         }
-        
+
+        // ウインク（左目だけ閉じる）
+        if (wink > 0f) {
+            val leftX0 = max(0, leftEyeCenter.first - eyeRadiusX - 1).toFloat()
+            val leftX1 = min(layout.size, leftEyeCenter.first + eyeRadiusX + 1).toFloat()
+            val topY = max(0, leftEyeCenter.second - eyeRadiusY).toFloat()
+            val botY = min(layout.size, leftEyeCenter.second + eyeRadiusY).toFloat()
+            val fullH = botY - topY
+            // 上からの降下量: 目の高さいっぱい（完全に閉じる）
+            val cover = (fullH * wink).roundToInt().coerceAtLeast(1)
+            canvas.drawRect(leftX0, topY, leftX1, topY + cover, blackFill)
+            // 閉じきったら「閉じた目」の白い横線を中央に描く
+            if (wink >= 1f) {
+                val midY = leftEyeCenter.second.toFloat()
+                canvas.drawRect(
+                    (leftEyeCenter.first - eyeRadiusX + 1).toFloat(),
+                    midY,
+                    (leftEyeCenter.first + eyeRadiusX - 1).toFloat(),
+                    midY + 1f,
+                    whitePaint
+                )
+            }
+        }
+
         return reusableBitmap
     }
     
@@ -198,17 +225,12 @@ class EyeRenderer {
         val centerY = leftEyeCenter.second.toFloat()
         val connectionWidth = (rightEyeCenter.first - leftEyeCenter.first - eyeRadiusX * 2).toFloat()
         if (connectionWidth > 0) {
-            val strokeRect = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.BLACK
-                style = Paint.Style.STROKE
-                strokeWidth = EyeConstants.EYE_OUTLINE_WIDTH.toFloat()
-            }
             canvas.drawRect(
                 (leftEyeCenter.first + eyeRadiusX).toFloat(),
                 (centerY - eyeRadiusY / 2f),
                 (rightEyeCenter.first - eyeRadiusX).toFloat(),
                 (centerY + eyeRadiusY / 2f),
-                strokeRect
+                strokePaint
             )
         }
     }

@@ -12,6 +12,7 @@ import com.nothing.ketchum.GlyphMatrixFrame
 import com.nothing.ketchum.GlyphMatrixObject
 import com.nothing.ketchum.GlyphToy
 import com.nothing.ketchum.Glyph
+import com.nothing.ketchum.Common
 
 /**
  * Glyph Eyes サービス（リファクタ版）
@@ -33,18 +34,12 @@ class GlyphEyesService : Service() {
 
     // Glyph SDK
     private var gm: GlyphMatrixManager? = null
-    private var frameBuilder: GlyphMatrixFrame.Builder? = null
 
     // Handler for animations and frame updates
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    // 目の形状定数
-    private val eyeCenterLeft = Pair(EyeConstants.EYE_CENTER_LEFT_X, EyeConstants.EYE_CENTER_LEFT_Y)
-    private val eyeCenterRight = Pair(EyeConstants.EYE_CENTER_RIGHT_X, EyeConstants.EYE_CENTER_RIGHT_Y)
-    private val eyeRadiusX = EyeConstants.EYE_RADIUS_X
-    private val eyeRadiusY = EyeConstants.EYE_RADIUS_Y
-    private val pupilRadius = EyeConstants.PUPIL_RADIUS
-    private val pupilRange = EyeConstants.PUPIL_RANGE
+    // 目の形状（実行中のデバイスのマトリクス長に応じて init() で決定）
+    private lateinit var layout: EyeLayout
 
     // DEBUG: force sleepy demo regardless of battery
     private val demoForceSleepy: Boolean = false
@@ -66,6 +61,7 @@ class GlyphEyesService : Service() {
                             when {
                                 random < 5 -> animationController.triggerSleepy()
                                 random < 10 -> animationController.triggerAngry()
+                                random < 15 -> animationController.triggerSquint()
                             }
                         }
                     }
@@ -94,13 +90,19 @@ class GlyphEyesService : Service() {
             Log.e(TAG, "[$component] $error", exception)
         }
         
+        // 実行中のデバイスを判定してレイアウトを決定
+        // Phone (3): 25×25 / Phone (4a) Pro: 13×13
+        val matrixLength = Common.getDeviceMatrixLength()
+        layout = EyeLayout.forMatrixLength(matrixLength)
+        Log.i(TAG, "Device matrix length: $matrixLength")
+
         // コンポーネントを初期化
         eyeState = EyeState()
         animationController = AnimationController(eyeState)
         tiltSensorManager = TiltSensorManager(this, eyeState, errorCallback)
         batteryMonitor = BatteryMonitor(this, eyeState, animationController, errorCallback)
-        demoManager = DemoManager(eyeState, errorCallback)
-        eyeRenderer = EyeRenderer()
+        demoManager = DemoManager(eyeState, layout, errorCallback)
+        eyeRenderer = EyeRenderer(layout)
 
         // Glyph SDK 初期化
         gm = GlyphMatrixManager.getInstance(this)
@@ -112,9 +114,16 @@ class GlyphEyesService : Service() {
                 Log.w(TAG, "Glyph service disconnected")
             }
         })
-        gm?.register(Glyph.DEVICE_23112)
 
-        frameBuilder = GlyphMatrixFrame.Builder()
+        val device = when (matrixLength) {
+            Glyph.DEVICE_25111p_MATRIX_LENGTH -> Glyph.DEVICE_25111p // Phone (4a) Pro
+            Glyph.DEVICE_23112_MATRIX_LENGTH -> Glyph.DEVICE_23112  // Phone (3)
+            else -> {
+                Log.w(TAG, "Unsupported matrix length: $matrixLength, falling back to Phone (3)")
+                Glyph.DEVICE_23112
+            }
+        }
+        gm?.register(device)
 
         // コンポーネントを開始
         val sensorResult = tiltSensorManager.start()
@@ -154,7 +163,6 @@ class GlyphEyesService : Service() {
         mainHandler.removeCallbacksAndMessages(null)
         gm?.unInit()
         gm = null
-        frameBuilder = null
         Log.i(TAG, "Service teardown complete")
     }
 
@@ -171,21 +179,30 @@ class GlyphEyesService : Service() {
     private fun renderFrame() {
         val builder = GlyphMatrixFrame.Builder()
 
+        val eyeCenterLeft = layout.leftCenter
+        val eyeCenterRight = layout.rightCenter
+
         // Calculate eye size based on emotions
         val scaleBoost = 1f + 0.3f * eyeState.surpriseProgress
         val effectiveSleep = eyeState.getEffectiveSleep()
         val angryScale = 1f + 0.2f * eyeState.angryProgress
         val squintScale = 1f - 0.6f * eyeState.squintProgress
-        
+
         val finalScale = scaleBoost * angryScale * squintScale
-        val eyeRX = (eyeRadiusX * finalScale).roundToInt().coerceAtLeast(1)
-        val eyeRY = (eyeRadiusY * finalScale).roundToInt().coerceAtLeast(1)
+        var eyeRX = (layout.radiusX * finalScale).roundToInt().coerceAtLeast(1)
+        var eyeRY = (layout.radiusY * finalScale).roundToInt().coerceAtLeast(1)
+        // 4a Pro(13×13)など小さいレイアウトでは1.3倍が丸めで消えるため、
+        // 驚き中は最低+1pxの拡大を保証する
+        if (eyeState.surpriseProgress > 0f && layout.radiusX <= 2) {
+            eyeRX += 1
+            eyeRY += 1
+        }
 
         // 瞳オフセット（モード別）
         val (lx, ly, rx, ry) = when (eyeState.mode) {
             EyeState.EyeMode.SENSOR -> {
-                val ox = (eyeState.filteredX * pupilRange).roundToInt()
-                val oy = (eyeState.filteredY * pupilRange).roundToInt()
+                val ox = (eyeState.filteredX * layout.pupilRange).roundToInt()
+                val oy = (eyeState.filteredY * layout.pupilRange).roundToInt()
                 DemoManager.Quad(ox, oy, ox, oy)
             }
             EyeState.EyeMode.DEMO -> {
@@ -201,8 +218,8 @@ class GlyphEyesService : Service() {
         val pupilRightCenter = Pair(eyeCenterRight.first + rx, eyeCenterRight.second + ry)
 
         // Apply ellipse clamping to prevent overflow
-        val clL = eyeRenderer.clamp(eyeCenterLeft, pupilLeftCenter, eyeRX, pupilRadius)
-        val clR = eyeRenderer.clamp(eyeCenterRight, pupilRightCenter, eyeRX, pupilRadius)
+        val clL = eyeRenderer.clamp(eyeCenterLeft, pupilLeftCenter, eyeRX, layout.pupilRadius)
+        val clR = eyeRenderer.clamp(eyeCenterRight, pupilRightCenter, eyeRX, layout.pupilRadius)
 
         // 目のリングと瞳を1枚のビットマップに描画
         val bm = eyeRenderer.drawEyes(
@@ -212,11 +229,12 @@ class GlyphEyesService : Service() {
             eyeRadiusY = eyeRY,
             pupilLeftCenter = clL,
             pupilRightCenter = clR,
-            pupilRadius = pupilRadius,
+            pupilRadius = layout.pupilRadius,
             blink = eyeState.blinkProgress,
             sleep = effectiveSleep,
             angry = eyeState.angryProgress,
-            squint = eyeState.squintProgress
+            squint = eyeState.squintProgress,
+            wink = eyeState.winkProgress
         )
 
         // ビットマップから Glyph オブジェクトを作成
@@ -254,8 +272,15 @@ class GlyphEyesService : Service() {
                 }
             }
         } else {
-            // 短押し: 軽い表情
-            animationController.triggerSquint()
+            // 短押し: ダブルプレスならウインク、単発なら軽い表情（笑顔）
+            val sinceLastShortPress = now - eyeState.lastShortPressUpAt
+            if (sinceLastShortPress in 1..EyeConstants.DOUBLE_PRESS_WINDOW_MS) {
+                eyeState.lastShortPressUpAt = 0L
+                animationController.triggerWink()
+            } else {
+                eyeState.lastShortPressUpAt = now
+                animationController.triggerSquint()
+            }
         }
     }
 }
